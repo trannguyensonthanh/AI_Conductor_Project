@@ -1,0 +1,85 @@
+# ========================
+# OS & Editor Junk
+# ========================
+.DS_Store
+Thumbs.db
+.vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+# ========================
+# Node.js & React (Frontend & Backend)
+# ========================
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Build and Dist caches
+dist/
+dist-ssr/
+build/
+coverage/
+.next/
+out/
+.vite/
+.eslintcache
+
+# Environment Configs
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# ========================
+# Python (AI Engine: ai_service.py, collect_data.py)
+# ========================
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual Environments
+venv/
+.venv/
+env/
+.env_python/
+ENV/
+*.egg-info/
+
+# Output and logs
+*.log
+.coverage
+htmlcov/
+.pytest_cache/
+.tox/
+
+# Datasets / AI Models / Jupyter
+.ipynb_checkpoints/
+# (Bỏ comment nếu bạn không muốn đẩy file Model AI nặng lên Git)
+# *.pkl
+# *.h5
+# *.joblib
+# *.onnx
+# *.pt
+
+# ========================
+# Arduino / C++ (Nếu đẩy cả Source ESP32 lên chung)
+# ========================
+.build/
+*.elf
+*.bin
+*.hex
+*.UF2
+*.map
+.arduinocdt/
