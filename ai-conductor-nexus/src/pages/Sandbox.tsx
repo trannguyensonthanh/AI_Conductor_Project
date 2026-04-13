@@ -19,7 +19,7 @@ const sceneOptions: { id: SceneId; name: string; icon: string }[] = [
   { id: 'NEON_CAR', name: 'Cyberpunk Car', icon: '🚗' },
   // { id: 'CRYSTAL_CAVE', name: 'Crystal Cave', icon: '💎' },
   { id: 'UNDERWATER', name: 'Underwater World', icon: '🐠' },
-  { id: 'ROBOT_ARM', name: 'Robot Arm', icon: '🤖' },
+  { id: 'ROBOT_ARM', name: 'Robot', icon: '🤖' },
   { id: 'CHERRY_BLOSSOM', name: 'Cherry Blossom', icon: '🌸' },
 ];
 

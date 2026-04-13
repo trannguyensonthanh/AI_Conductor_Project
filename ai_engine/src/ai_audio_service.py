@@ -63,9 +63,12 @@ sio = socketio.Client()
 audio_buffer = deque(maxlen=SEQ_LENGTH)
 buffer_lock = threading.Lock()
 
+# 💡 HẠ NGƯỠNG ENERGY: Nói xa tín hiệu rất nhỏ, 0.02 là quá cao. Hạ xuống 0.005
+ENERGY_THRESHOLD = 0.005 
+
 class AudioEngine:
     def __init__(self):
-        print("🎙️ Đang khởi động Audio AI Service (Có bộ lọc Noise)...")
+        print("🎙️ Đang khởi động Audio AI Service (Bản Cải Tiến Xịn Xò)...")
         self.device = torch.device("cpu") 
         
         try:
@@ -92,9 +95,13 @@ class AudioEngine:
             exit()
 
     def process_and_predict(self):
-        print("🎧 Đang lắng nghe mệnh lệnh bằng Giọng nói...")
+        print("🎧 Đang lắng nghe mệnh lệnh bằng Giọng nói (Bật khiên chống nói nhảm & Tăng độ nhạy)...")
+        
+        # 1. TĂNG ĐỘ NHẠY: Hạ ngưỡng bắt âm thanh (Nghe lén từ xa)
+        DYNAMIC_ENERGY_THRESHOLD = 0.0015 
+        
         while True:
-            time.sleep(0.05)
+            time.sleep(0.05) 
             
             if time.time() - self.last_predict_time < COOLDOWN_TIME:
                 continue
@@ -104,45 +111,75 @@ class AudioEngine:
                     continue
                 audio_data = list(audio_buffer)
 
-            # Chuyển đổi 16-bit PCM về Float
             audio_np = np.array(audio_data, dtype=np.float32) / 32768.0
             rms_energy = np.sqrt(np.mean(audio_np**2))
             
-            if rms_energy > ENERGY_THRESHOLD:
+            # Đã hạ ngưỡng để nhạy hơn với tiếng từ xa
+            if rms_energy > DYNAMIC_ENERGY_THRESHOLD:
                 audio_tensor = torch.tensor(audio_np).unsqueeze(0).to(self.device) 
                 mel_spec = self.mel_transform(audio_tensor)
                 mel_db = self.db_transform(mel_spec).unsqueeze(0) 
 
+                mean = mel_db.mean()
+                std = mel_db.std()
+                
+                # 2. TĂNG ĐỘ NHẠY: Nới lỏng ngưỡng dB (Từ -45.0 xuống -55.0)
+                if mean.item() < -55.0: 
+                    continue 
+                
+                mel_db = (mel_db - mean) / (std + 1e-6)
+
                 with torch.no_grad():
                     output = self.model(mel_db)
                     probabilities = F.softmax(output, dim=1)
-                    confidence, predicted_idx = torch.max(probabilities, 1)
                     
-                    confidence_pct = confidence.item() * 100
-                    pred_label = self.idx_to_label[predicted_idx.item()].lower() # Đưa về chữ thường để dễ so sánh
+                    # 🔥 KỸ THUẬT MỚI: Lấy 2 dự đoán cao nhất thay vì chỉ 1 🔥
+                    top_probs, top_idxs = torch.topk(probabilities, 2, dim=1)
                     
-                    # 🔥 BỘ LỌC ĐA TẦNG: TỰ TIN + CHỐNG NOISE 🔥
-                    if confidence_pct < 75.0:
-                        print(f"🤔 Chưa rõ ràng ({pred_label.upper()} - {confidence_pct:.1f}%). Bỏ qua.")
-                    elif pred_label == 'noise':
-                        # TÌM RA NHÃN NOISE -> CHẶN ĐỨNG NGAY TẠI ĐÂY!
-                        print(f"🗑️ [BỎ QUA TẠP ÂM]: Nhận diện là Noise ({confidence_pct:.1f}%).")
-                        # Xóa bộ đệm để không nhận diện lại cục rác này
+                    conf_1 = top_probs[0][0].item() * 100 # Xác suất cao nhất (Top 1)
+                    conf_2 = top_probs[0][1].item() * 100 # Xác suất cao thứ nhì (Top 2)
+                    
+                    pred_label_1 = self.idx_to_label[top_idxs[0][0].item()].lower()
+                    pred_label_2 = self.idx_to_label[top_idxs[0][1].item()].lower()
+                    
+                    # Tính khoảng cách phân vân của AI
+                    margin = conf_1 - conf_2
+
+                    # 🔥 BỘ LỌC ĐA TẦNG: CHỐNG NÓI TÀO LAO 🔥
+                    # Nâng chuẩn tự tin lên 85% (vì từ tào lao hay bị ép lên 75-80%)
+                    if conf_1 < 85.0:
+                        # Bỏ qua nhẹ nhàng, không clear buffer
+                        pass
+                    
+                    elif pred_label_1 == 'noise':
+                        pass
+
+                    # 3. 🔥 FILTER RIÊNG CHO "SHOOT"
+                    elif pred_label_1 == 'shoot' and conf_1 < 90.0:
+                        print(f"🚫 [CHẶN SHOOT NON]: {conf_1:.1f}% chưa đủ tin cậy")
                         with buffer_lock:
                             audio_buffer.clear()
+
+                    elif margin < 30.0:
+                        # NẾU KHOẢNG CÁCH TOP 1 VÀ TOP 2 < 30% => AI ĐANG ĐOÁN MÒ TỪ TÀO LAO!
+                        print(f"🚫 [CHẶN TỪ LẠ]: AI phân vân giữa {pred_label_1.upper()} ({conf_1:.1f}%) và {pred_label_2.upper()} ({conf_2:.1f}%). Khả năng cao là nói nhảm.")
+                        # Xóa luôn buffer để không kẹt vào từ rác này
+                        with buffer_lock:
+                            audio_buffer.clear()
+                            
                     else:
-                        # CHỈ KHI LÀ LỆNH CHUẨN VÀ TỰ TIN CAO MỚI BẮN LÊN FRONTEND
-                        print(f"🗣️ [CHỐT LỆNH]: {pred_label.upper()} ({confidence_pct:.1f}%) | Vol: {rms_energy:.3f}")
+                        # VƯỢT QUA MỌI LỚP BẢO VỆ -> LỆNH CHUẨN XÁC 100%
+                        print(f"🗣️ [CHỐT LỆNH]: {pred_label_1.upper()} (Tự tin: {conf_1:.1f}% | Cắt đuôi đối thủ: {margin:.1f}%) | Vol: {rms_energy:.4f}")
                         
                         if sio.connected:
                             sio.emit('ai_voice_command', {
-                                'command': pred_label.upper(), 
-                                'confidence': round(confidence_pct, 2)
+                                'command': pred_label_1.upper(), 
+                                'confidence': round(conf_1, 2)
                             })
                         
                         self.last_predict_time = time.time()
                         with buffer_lock:
-                            audio_buffer.clear() 
+                            audio_buffer.clear()
 
 # --- KẾT NỐI VÀ HỨNG DỮ LIỆU TỪ NODE.JS ---
 @sio.event

@@ -103,33 +103,36 @@
 //     console.error(`❌ [KHÔNG THỂ MỞ CỔNG COM]`);
 // }
 
+
 import express from 'express';
 import http from 'http';
 import { Server as SocketIOServer } from 'socket.io';
+import { WebSocketServer } from 'ws'; // Dùng thư viện ws gốc cho ESP32
 import cors from 'cors';
-import net from 'net'; // Module TCP có sẵn của Node.js
 
 const app = express();
 app.use(cors());
 const server = http.createServer(app);
 
 // =========================================================
-// 1. KÊNH GIAO TIẾP (PORT 5000) CHO REACT & PYTHON
+// 1. KÊNH GIAO TIẾP (PORT 5000) CHO REACT & PYTHON AI
 // =========================================================
 const io = new SocketIOServer(server, {
-  cors: { origin: '*', methods: ['GET', 'POST'] },
+  cors: { origin: '*', methods:['GET', 'POST'] },
 });
 
 io.on('connection', (socket) => {
   console.log(`💻 [APP/AI KẾT NỐI]: ${socket.id}`);
 
+  // Hứng lệnh từ AI Cử chỉ
   socket.on('ai_gesture_detected', (data) => {
-    console.log(`🧠 [AI CHỐT ĐƠN]: ${data.gesture} (Độ tự tin: ${data.confidence}%)`);
+    console.log(`🧠[AI CỬ CHỈ]: ${data.gesture} (${data.confidence}%)`);
     io.emit('fe_gesture_update', data);
   });
 
+  // Hứng lệnh từ AI Giọng nói
   socket.on('ai_voice_command', (data) => {
-    console.log(`🗣️ [GIỌNG NÓI]: ${data.command} (${data.confidence}%)`);
+    console.log(`🗣️[AI GIỌNG NÓI]: ${data.command} (${data.confidence}%)`);
     io.emit('fe_voice_update', data); 
   });
 
@@ -144,68 +147,58 @@ server.listen(5000, () => {
 });
 
 // =========================================================
-// 2. TCP SOCKET SERVER ĐỂ NHẬN DỮ LIỆU TỪ ESP32 QUA WI-FI
+// 2. KÊNH NHẬN DỮ LIỆU KHÔNG DÂY TỪ ESP32 (PORT 5001)
 // =========================================================
-const TCP_PORT = 5001;
+const wss = new WebSocketServer({ port: 5001 }, () => {
+  console.log('📡 [ESP32 HUB] Kênh hứng Data Wi-Fi mở tại PORT 5001');
+  console.log('==================================================\n');
+});
 
-const tcpServer = net.createServer((socket) => {
-  console.log(`🔌 [ESP32] Đã kết nối qua Wi-Fi (IP: ${socket.remoteAddress})!`);
-  
-  let dataBuffer = ''; // Bộ đệm dùng để nối các gói tin TCP bị cắt dở
+wss.on('connection', (ws) => {
+  console.log(`🔌 [ESP32] GĂNG TAY ĐÃ KẾT NỐI QUA WI-FI! Bắt đầu nhận dữ liệu...`);
 
-  socket.on('data', (chunk) => {
-    dataBuffer += chunk.toString();
+  ws.on('message', (message) => {
+    try {
+      console.log(message)
+      // WebSocket gửi data dạng Buffer, cần chuyển sang String
+      const rawLine = message.toString().trim();
+      if (!rawLine) return;
+
+      // Bộ lọc an toàn của ông Thành (vẫn giữ lại cho chắc ăn)
+      const colonCount = (rawLine.match(/:/g) ||[]).length;
+      if (colonCount !== 1) return;
     
-    // Tách dòng dựa trên ký tự xuống dòng \r\n
-    let lines = dataBuffer.split('\r\n');
-    
-    // Giữ lại phần chưa hoàn chỉnh (không có \r\n) vào bộ đệm cho lần nhận tiếp theo
-    dataBuffer = lines.pop(); 
-
-    for (let rawLine of lines) {
-      if (!rawLine) continue;
-
-      const colonCount = (rawLine.match(/:/g) || []).length;
-      if (colonCount !== 1) continue; // Chống dính/nhiễu
-      
-      try {
-        // 1. XỬ LÝ IMU
-        if (rawLine.startsWith('I:')) {
+      // 1. XỬ LÝ IMU
+      if (rawLine.startsWith('I:')) {
           const dataStr = rawLine.substring(2);
           const parts = dataStr.split(',').map(Number);
+          console.log(parts)
           
           if (parts.length === 6 && !parts.includes(NaN)) {
-            const imuData = { 
-              ax: parts[0], ay: parts[1], az: parts[2], 
-              gx: parts[3], gy: parts[4], gz: parts[5] 
-            };
-            io.emit('sensor_stream', imuData);
+              const imuData = { 
+                  ax: parts[0], ay: parts[1], az: parts[2], 
+                  gx: parts[3], gy: parts[4], gz: parts[5] 
+              };
+              // Bắn qua port 5000 cho React và Python
+              io.emit('sensor_stream', imuData);
           }
-        } 
-        // 2. XỬ LÝ AUDIO
-        else if (rawLine.startsWith('A:')) {
+      } 
+      // 2. XỬ LÝ AUDIO
+      else if (rawLine.startsWith('A:')) {
           const audioStr = rawLine.substring(2);
           const chunkArray = audioStr.split(',').map(Number);
           
           if (chunkArray.length === 256 && !chunkArray.includes(NaN)) {
-            io.emit('audio_stream', { chunk: chunkArray });
+              // Bắn qua port 5000 cho Python Audio
+              io.emit('audio_stream', { chunk: chunkArray });
           }
-        }
-      } catch (error) {
-        // Im lặng bỏ qua dòng lỗi
       }
+    } catch (error) {
+      // Im lặng bỏ qua dòng lỗi
     }
   });
 
-  socket.on('error', (err) => {
-    console.error(`❌ [LỖI TCP SOCKET]: ${err.message}`);
+  ws.on('close', () => {
+    console.log(`❌ [ESP32] ĐÃ MẤT KẾT NỐI WI-FI!`);
   });
-
-  socket.on('close', () => {
-    console.log(`🔌 [ESP32] Đã ngắt kết nối Wi-Fi!`);
-  });
-});
-
-tcpServer.listen(TCP_PORT, '0.0.0.0', () => {
-  console.log(`📡 [TCP SERVER] Đang lắng nghe ESP32 tại PORT ${TCP_PORT}`);
 });

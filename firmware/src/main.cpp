@@ -132,32 +132,48 @@
 // void loop() { vTaskDelete(NULL); }
 
 #include <Arduino.h>
+#include <WiFi.h>
+#include <WebSocketsClient.h> // <<< THƯ VIỆN MỚI
 #include <Wire.h>
 #include <Adafruit_MPU6050.h>
+#include <Adafruit_Sensor.h>
 #include <driver/i2s.h>
-#include <WiFi.h>
+#include "esp_log.h"
 
-// --- CẤU HÌNH WI-FI & SOCKET SERVER ---
-const char *WIFI_SSID = "TEN_WIFI_CUA_BAN";
-const char *WIFI_PASSWORD = "MAT_KHAU_WIFI";
-const char *SERVER_IP = "192.168.1.X";
-const int SERVER_PORT = 5001;
-
-WiFiClient tcpClient;
-
-// --- CẤU HÌNH CHÂN ---
+// ================= CẤU HÌNH MẠNG (SỬA Ở ĐÂY) =================
+const char *ssid = "Nờ Tê";
+const char *password = "14102004";
+const char *server_ip = "172.20.10.2"; // <<< SỬA LẠI IP MÁY TÍNH CỦA ÔNG
+const uint16_t server_port = 5001;     // Chú ý: ESP32 kết nối vào port 5001 của Node.js
+// ==============================================================
+// const char *WIFI_SSID = "Dung Lau 1_2.4G";
+// const char *WIFI_PASSWORD = "0352791426";
+// const char *SERVER_IP = "192.168.1.8";
+// const int SERVER_PORT = 5001;
 #define I2C_SDA 21
 #define I2C_SCL 22
 #define I2S_WS 15
-#define I2S_SD 32
+#define I2S_SD 32 // (Chân của ông là 32)
 #define I2S_SCK 14
 #define I2S_PORT I2S_NUM_0
 
 Adafruit_MPU6050 mpu;
-SemaphoreHandle_t wifiMutex;
+WebSocketsClient webSocket;
+
+// Khóa bảo vệ đường truyền WebSocket chống đụng độ giữa 2 Core
+SemaphoreHandle_t wsMutex;
 
 #define AUDIO_CHUNK_SIZE 256
 int32_t i2s_raw_buffer[AUDIO_CHUNK_SIZE];
+
+struct SensorData
+{
+  float ax, ay, az, gx, gy, gz;
+  int mic;
+};
+
+QueueHandle_t sensorQueue;
+SensorData lastGoodData = {0, 0, 0, 0, 0, 0, 0};
 
 void i2s_install()
 {
@@ -178,6 +194,19 @@ void i2s_install()
   i2s_start(I2S_PORT);
 }
 
+// Sự kiện WebSocket
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
+{
+  if (type == WStype_DISCONNECTED)
+  {
+    Serial.println("[WS] Bị ngắt kết nối!");
+  }
+  else if (type == WStype_CONNECTED)
+  {
+    Serial.println("[WS] Đã kết nối tới Server Node.js!");
+  }
+}
+
 // =========================================================
 // TASK 1: ĐỌC VÀ GỬI MPU6050 (CORE 1 - 100Hz)
 // =========================================================
@@ -185,20 +214,26 @@ void TaskIMU(void *pvParameters)
 {
   const TickType_t xFrequency = 10 / portTICK_PERIOD_MS;
   TickType_t xLastWakeTime = xTaskGetTickCount();
+  char imuBuffer[100]; // Dùng buffer tĩnh cho nhanh
 
   for (;;)
   {
     sensors_event_t a, g, temp;
     mpu.getEvent(&a, &g, &temp);
 
-    if (tcpClient.connected())
+    // Chỉ gửi khi Wifi đã kết nối
+    if (webSocket.isConnected())
     {
-      if (xSemaphoreTake(wifiMutex, portMAX_DELAY))
+      // Format dữ liệu IMU
+      sprintf(imuBuffer, "I:%.2f,%.2f,%.2f,%.2f,%.2f,%.2f",
+              a.acceleration.x, a.acceleration.y, a.acceleration.z,
+              g.gyro.x, g.gyro.y, g.gyro.z);
+
+      // Xin phép dùng WebSocket
+      if (xSemaphoreTake(wsMutex, portMAX_DELAY))
       {
-        tcpClient.printf("I:%.2f,%.2f,%.2f,%.2f,%.2f,%.2f\r\n",
-                         a.acceleration.x, a.acceleration.y, a.acceleration.z,
-                         g.gyro.x, g.gyro.y, g.gyro.z);
-        xSemaphoreGive(wifiMutex);
+        webSocket.sendTXT(imuBuffer); // Bắn qua Wifi
+        xSemaphoreGive(wsMutex);
       }
     }
     vTaskDelayUntil(&xLastWakeTime, xFrequency);
@@ -211,13 +246,13 @@ void TaskIMU(void *pvParameters)
 void TaskAudio(void *pvParameters)
 {
   size_t bytes_read = 0;
-  char audioBuffer[2500];
+  char audioBuffer[2000]; // Buffer lớn cho chuỗi Audio
 
   for (;;)
   {
     i2s_read(I2S_PORT, &i2s_raw_buffer, sizeof(i2s_raw_buffer), &bytes_read, portMAX_DELAY);
 
-    if (bytes_read > 0 && tcpClient.connected())
+    if (bytes_read > 0 && webSocket.isConnected())
     {
       int pos = 0;
       pos += sprintf(&audioBuffer[pos], "A:");
@@ -231,36 +266,43 @@ void TaskAudio(void *pvParameters)
         }
         else
         {
-          pos += sprintf(&audioBuffer[pos], "%d\r\n", sample);
+          pos += sprintf(&audioBuffer[pos], "%d", sample);
         }
       }
 
-      if (xSemaphoreTake(wifiMutex, portMAX_DELAY))
+      // Xin phép dùng WebSocket
+      if (xSemaphoreTake(wsMutex, portMAX_DELAY))
       {
-        tcpClient.print(audioBuffer);
-        xSemaphoreGive(wifiMutex);
+        webSocket.sendTXT(audioBuffer); // Bắn qua Wifi
+        xSemaphoreGive(wsMutex);
       }
     }
     vTaskDelay(1 / portTICK_PERIOD_MS);
   }
 }
 
-// ================= SETUP CHÍNH =================
 void setup()
 {
   Serial.begin(115200);
+  delay(1000);
 
-  // 1. KẾT NỐI WI-FI
-  Serial.print("Đang kết nối Wi-Fi");
-  WiFi.begin(WIFI_SSID, WIFI_PASSWORD);
+  // Kết nối WiFi
+  WiFi.begin(ssid, password);
+  Serial.print("Connecting to WiFi");
   while (WiFi.status() != WL_CONNECTED)
   {
     delay(500);
     Serial.print(".");
+    Serial.print(WiFi.status());
   }
-  Serial.println("\nĐã kết nối Wi-Fi! IP: " + WiFi.localIP().toString());
+  Serial.println("\nWiFi connected! IP: " + WiFi.localIP().toString());
 
-  wifiMutex = xSemaphoreCreateMutex();
+  // Kết nối WebSocket
+  webSocket.begin(server_ip, server_port, "/");
+  webSocket.onEvent(webSocketEvent);
+  webSocket.setReconnectInterval(5000);
+
+  wsMutex = xSemaphoreCreateMutex();
 
   Wire.begin(I2C_SDA, I2C_SCL);
   Wire.setClock(400000);
@@ -278,21 +320,8 @@ void setup()
   xTaskCreatePinnedToCore(TaskAudio, "Audio", 16384, NULL, 1, NULL, 0);
 }
 
-// ================= VÒNG LẶP CHÍNH CỦA CORE 1 =================
 void loop()
 {
-  // Quản lý duy trì kết nối TCP Socket
-  if (WiFi.status() == WL_CONNECTED)
-  {
-    if (!tcpClient.connected())
-    {
-      Serial.println("Đang kết nối lại tới Server TCP...");
-      if (tcpClient.connect(SERVER_IP, SERVER_PORT))
-      {
-        Serial.println("Đã kết nối tới Node.js Server!");
-      }
-      delay(2000); // Tránh spam kết nối
-    }
-  }
-  delay(100);
+  webSocket.loop(); // QUAN TRỌNG: Hàm này duy trì mạng Wifi
+  vTaskDelay(1);
 }
