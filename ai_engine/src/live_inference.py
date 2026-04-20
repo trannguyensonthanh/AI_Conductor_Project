@@ -11,7 +11,7 @@ import matplotlib.pyplot as plt
 import matplotlib.animation as animation
 import socketio
 # ================= CẤU HÌNH CƠ BẢN =================
-COM_PORT = 'COM3'      # <<< NHỚ ĐỔI CỔNG COM CỦA ÔNG
+COM_PORT = 'COM3'  
 BAUD_RATE = 115200
 SEQ_LENGTH = 100       # 150 frames = 1.5 giây
 FEATURES = 6           # 6 trục

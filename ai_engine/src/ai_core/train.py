@@ -40,7 +40,7 @@ def train_model():
         correct_train = 0
         total_train = 0
 
-        # Thanh tiến trình cực ngầu
+        # Thanh tiến trình
         progress_bar = tqdm(train_loader, desc=f"Epoch {epoch+1}/{EPOCHS} [Train]")
         
         for inputs, labels in progress_bar:

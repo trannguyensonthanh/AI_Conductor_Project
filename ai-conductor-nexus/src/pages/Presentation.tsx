@@ -15,7 +15,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { toast } from '@/hooks/use-toast';
-
+import { get, set } from 'idb-keyval';
 // const defaultSlides = [
 //   {
 //     id: 'default-1',
@@ -134,6 +134,7 @@ export default function PresentationPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const lastVoiceCommand = useAppStore((s) => s.lastVoiceCommand);
   const lastActionTime = useRef<number>(0); 
+  const [isIdbLoaded, setIsIdbLoaded] = useState(false);
   // Build the slide list
   const allSlides: SlideItem[] = [
     // ...defaultSlides.map((s) => ({ ...s, type: 'default' as const, url: '' })),
@@ -145,6 +146,27 @@ export default function PresentationPage() {
       url: s.url,
     })),
   ];
+
+useEffect(() => {
+    get('presentation_slides').then((savedGroups) => {
+      if (savedGroups) {
+        setImportedGroups(savedGroups);
+      }
+      setIsIdbLoaded(true);
+    }).catch(err => {
+      console.error("Lỗi đọc dữ liệu từ IndexedDB:", err);
+      setIsIdbLoaded(true);
+    });
+  }, []);
+
+// 4. LƯU DỮ LIỆU VÀO INDEXED DB MỖI KHI CÓ THAY ĐỔI (Thêm/Xoá file)
+  useEffect(() => {
+    if (isIdbLoaded) {
+      set('presentation_slides', importedGroups).catch(err => {
+        console.error("Lỗi lưu dữ liệu vào IndexedDB:", err);
+      });
+    }
+  }, [importedGroups, isIdbLoaded]);
 
   // Add imported file slides (PPTX/PDF converted to images)
   for (const group of importedGroups) {
@@ -312,14 +334,18 @@ export default function PresentationPage() {
       }
 
       // Handle images
-      if (file.type.startsWith('image/')) {
-        const url = URL.createObjectURL(file);
-        addSlide({
-          id: `slide-${Date.now()}-${Math.random().toString(36).slice(2)}`,
-          name: file.name,
-          url,
-          uploadedAt: new Date().toISOString(),
-        });
+if (file.type.startsWith('image/')) {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const base64Url = event.target?.result as string;
+          addSlide({
+            id: `slide-${Date.now()}-${Math.random().toString(36).slice(2)}`,
+            name: file.name,
+            url: base64Url, // Lưu luôn dạng text base64
+            uploadedAt: new Date().toISOString(),
+          });
+        };
+        reader.readAsDataURL(file);
         continue;
       }
 
