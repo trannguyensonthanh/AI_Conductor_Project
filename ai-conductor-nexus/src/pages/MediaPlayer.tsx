@@ -37,6 +37,8 @@ export default function MediaPlayer() {
   const animRef = useRef<number>(0);
   const lastVoiceCommand = useAppStore((s) => s.lastVoiceCommand);
   const setLastVoiceCommand = useAppStore((s) => s.setLastVoiceCommand);
+  const lastGesture = useAppStore((s) => s.lastGesture);
+  const setLastGesture = useAppStore((s) => s.setLastGesture);
   const activeMedia = mediaType === 'audio' ? audioRef.current : videoRef.current;
 
   // Disc spinning animation for audio
@@ -103,6 +105,52 @@ export default function MediaPlayer() {
     setLastVoiceCommand('NONE');
 
   },[lastVoiceCommand, volume, isPlaying, togglePlay, setLastVoiceCommand]);
+
+  // 🔥 AI GESTURE CONTROL: ĐIỀU KHIỂN BẰNG CỬ CHỈ TAY 🔥
+  useEffect(() => {
+    if (lastGesture === 'NONE') return;
+
+    // SWIPE_RIGHT → Tua tới +10 giây
+    if (lastGesture === 'SWIPE_RIGHT') {
+      if (activeMedia) {
+        activeMedia.currentTime = Math.min(duration, activeMedia.currentTime + 10);
+        toast({ title: "⏩ Tua tới +10s", description: "Cử chỉ: Vuốt Phải ➡️" });
+      }
+    }
+    // SWIPE_LEFT → Tua lùi -10 giây
+    else if (lastGesture === 'SWIPE_LEFT') {
+      if (activeMedia) {
+        activeMedia.currentTime = Math.max(0, activeMedia.currentTime - 10);
+        toast({ title: "⏪ Tua lùi -10s", description: "Cử chỉ: Vuốt Trái ⬅️" });
+      }
+    }
+    // PUSH → Play / Pause
+    else if (lastGesture === 'PUSH') {
+      togglePlay();
+      toast({ 
+        title: isPlaying ? "⏸ Đã Dừng" : "▶ Đang Phát", 
+        description: "Cử chỉ: Đẩy tay ✊" 
+      });
+    }
+    // SWIPE_UP → Tăng âm lượng +15%
+    else if (lastGesture === 'SWIPE_UP') {
+      const newVol = Math.min(100, volume + 15);
+      setVolume(newVol);
+      setIsMuted(false);
+      toast({ title: "🔊 Tăng âm lượng", description: `${newVol}% — Cử chỉ: Vuốt Lên ⬆️` });
+    }
+    // SWIPE_DOWN → Giảm âm lượng -15%
+    else if (lastGesture === 'SWIPE_DOWN') {
+      const newVol = Math.max(0, volume - 15);
+      setVolume(newVol);
+      setIsMuted(newVol === 0);
+      toast({ title: "🔉 Giảm âm lượng", description: `${newVol}% — Cử chỉ: Vuốt Xuống ⬇️` });
+    }
+
+    // Reset cử chỉ
+    setLastGesture('NONE');
+
+  }, [lastGesture, activeMedia, duration, volume, isPlaying, togglePlay, setLastGesture]);
 
   // Time update
   useEffect(() => {
