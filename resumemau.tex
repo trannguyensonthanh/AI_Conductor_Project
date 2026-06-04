@@ -1,0 +1,173 @@
+%===========================================================================
+% TRẦN NGUYỄN SƠN THÀNH — AI & Full-Stack Engineer Resume
+% Cấu trúc: 1 cột, chuẩn ATS, phong cách tối giản và chuyên nghiệp
+% Trình biên dịch khuyên dùng: pdfLaTeX hoặc XeLaTeX
+%===========================================================================
+
+\documentclass[10pt, a4paper]{article}
+
+%--- Packages ---------------------------------------------------------------
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern} % Font chữ chuẩn, rõ ràng giống format của Thái
+\usepackage[a4paper, top=1.2cm, bottom=1.2cm, left=1.5cm, right=1.5cm]{geometry}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{fontawesome5}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{microtype}
+
+%--- Cấu hình màu sắc & Links -----------------------------------------------
+\definecolor{darkblue}{HTML}{000000} % Đổi thành màu đen hoặc xanh than tùy ý
+\definecolor{linkcolor}{HTML}{0A84FF}
+
+\hypersetup{
+    colorlinks=true,
+    urlcolor=linkcolor,
+    linkcolor=linkcolor,
+    pdfauthor={Tran Nguyen Son Thanh},
+    pdftitle={Resume - Tran Nguyen Son Thanh},
+}
+
+%--- Căn chỉnh khoảng cách --------------------------------------------------
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{2pt}
+\pagestyle{empty}
+
+%--- Tùy chỉnh Tiêu đề (Section) -------------------------------------------
+\titleformat{\section}
+    {\large\bfseries\scshape\color{darkblue}} % Chữ in hoa, đậm, font serif
+    {}
+    {0em}
+    {}
+    [\titlerule\vspace{2pt}] % Đường gạch ngang dưới mỗi section
+
+\titlespacing*{\section}{0pt}{10pt}{6pt} % Khoảng cách trên/dưới section
+
+%--- Tùy chỉnh danh sách (Bullets) ------------------------------------------
+\setlist[itemize]{leftmargin=1.5em, itemsep=2pt, topsep=2pt, parsep=0pt}
+
+%--- Macros Custom để code gọn hơn -----------------------------------------
+\newcommand{\resumeItem}[1]{\item \small #1}
+\newcommand{\resumeSubheading}[4]{
+  \vspace{3pt}\item
+    \begin{tabular*}{1.0\textwidth}[t]{l@{\extracolsep{\fill}}r}
+      \textbf{#1} & \textit{\footnotesize #2} \\
+      \textit{\footnotesize #3} & \footnotesize #4 \\
+    \end{tabular*}\vspace{-5pt}
+}
+\newcommand{\projectHeader}[3]{
+  \vspace{3pt}
+  \noindent\textbf{#1} \ifx&#2&\else $|$ \href{#2}{\color{linkcolor}\faGithub\ \textit{GitHub}}\fi \hfill \textit{\footnotesize #3}\\[2pt]
+}
+
+%===========================================================================
+\begin{document}
+%===========================================================================
+
+%--- HEADER ----------------------------------------------------------------
+\begin{center}
+    {\Huge \bfseries Tran Nguyen Son Thanh}\\[5pt]
+    {\large AI Engineer \textbullet{} Full-Stack Developer}\\[5pt]
+    {\small
+        \faMapMarker*\ Ho Chi Minh City, Vietnam \quad
+        \faEnvelope\ \href{mailto:sonthanh12345678910@gmail.com}{sonthanh12345678910@gmail.com} \quad
+        \faPhone\ +84 399 038 165 \\
+        \vspace{2pt}
+        \faGithub\ \href{https://github.com/trannguyensonthanh}{trannguyensonthanh} \quad
+        \faLinkedin\ \href{https://www.linkedin.com/in/tran-nguyen-son-thanh/}{linkedin.com/in/tran-nguyen-son-thanh}
+    }
+\end{center}
+\vspace{-10pt}
+
+%--- SUMMARY ---------------------------------------------------------------
+\section{Summary}
+{\small
+AI Engineer \& Full-Stack Developer specializing in \textbf{Deep Learning, Computer Vision, and production-grade web systems}. Experienced in building end-to-end platforms spanning IoT firmware, Python AI services, Node.js backends, and React frontends. Recognized internationally with Top 10/550 teams worldwide at ICPR 2026 and nationally at the AI Informatics Olympiad 2025.
+}
+
+%--- EDUCATION -------------------------------------------------------------
+\section{Education}
+\begin{itemize}[leftmargin=0pt, label={}]
+    \resumeSubheading
+      {Posts and Telecommunications Institute of Technology (PTIT HCM)}{Aug 2022 -- Apr 2027}
+      {Engineer in Information Technology --- Specialization: Artificial Intelligence}{GPA: 3.2 / 4.0}
+\end{itemize}
+
+%--- AWARDS & RECOGNITION --------------------------------------------------
+\section{Awards \& Recognition}
+\begin{itemize}[leftmargin=0em, label={}, itemsep=3pt]
+    \item \textbf{Top 10 / 550 Teams Worldwide} --- ICPR 2026 (Low-Resolution License Plate Recognition) \hfill \textit{\footnotesize Feb 2026}
+    \item \textbf{National Consolation Prize} --- National AI Informatics Olympiad \hfill \textit{\footnotesize Dec 2025}
+    \item \textbf{Regional Consolation Prize} --- Southern Regional AI Informatics Olympiad \hfill \textit{\footnotesize Nov 2025}
+    \item \textbf{Excellence in Scientific Research} --- PTIT HCM (Topic: MC-MOT System with OpenVINO) \hfill \textit{\footnotesize Nov 2025}
+\end{itemize}
+
+%--- TECHNICAL SKILLS ------------------------------------------------------
+\section{Technical Skills}
+\begin{itemize}[leftmargin=0em, label={}]
+    \small{\item{
+     \textbf{Programming Languages:} Python, JavaScript/TypeScript, C++ (ESP32), SQL \\
+     \textbf{AI \& Machine Learning:} PyTorch, CNN/Bi-LSTM, Attention, YOLO, OpenVINO, CLIP, LangChain, LangGraph, RAG \\
+     \textbf{Frontend:} React 18, TypeScript, Vite, Three.js, Zustand, Tailwind CSS, shadcn/ui, TanStack Query \\
+     \textbf{Backend:} Node.js, Express.js, RESTful API, Socket.IO, JWT/OAuth2, FastAPI \\
+     \textbf{Database:} SQL Server (MSSQL), MongoDB, PostgreSQL, Schema Design, Stored Procedures \\
+     \textbf{DevOps \& Tools:} Git/GitHub, Docker, PlatformIO, FreeRTOS, ESLint, VS Code
+    }}
+\end{itemize}
+
+%--- FEATURED PROJECTS -----------------------------------------------------
+\section{Featured Projects}
+
+% Project 1
+\projectHeader{3TEduTech Ecosystem --- AI-Powered E-Learning Platform}{https://github.com/trannguyensonthanh}{2024 -- 2025}
+\vspace{-2pt}
+{\small \textit{Full-Stack Web Platform (React 18, TypeScript, Node.js, SQL Server)}}
+\begin{itemize}
+    \resumeItem{Architected a production-grade SPA with React Router v6 (40+ protected routes) and role-based access control.}
+    \resumeItem{Built a Course Curriculum Builder with drag-and-drop (\texttt{@hello-pangea/dnd}), multi-source video player (Video.js), and complex multi-step forms (React Hook Form + Zod).}
+    \resumeItem{Designed 30+ normalized SQL tables handling Accounts, Courses, Quizzes, Orders, and Instructor Payouts.}
+    \resumeItem{Integrated VNPay webhooks, Cloudinary video transcoding, Nodemailer, and JWT+OAuth2 authentication flows.}
+\end{itemize}
+
+% Project 2
+\projectHeader{AI Conductor --- Multimodal HCI System (IoT + Deep Learning)}{https://github.com/trannguyensonthanh}{2025}
+\vspace{-2pt}
+{\small \textit{Python, PyTorch, ESP32/FreeRTOS, React, Three.js, Socket.IO}}
+\begin{itemize}
+    \resumeItem{Designed \textbf{GestureNet} (1D-CNN + Bi-LSTM + Attention) achieving \char`\~92\% accuracy for 6 gestures via IMU data.}
+    \resumeItem{Developed \textbf{KeywordSpottingNet} (2D-CNN + Bi-LSTM + Attention) achieving \char`\~88\% accuracy for 8 voice commands.}
+    \resumeItem{Engineered a 5-layer noise filter ensuring robust production inference with end-to-end latency under 150ms.}
+    \resumeItem{Built an immersive Three.js 3D sandbox and mini-games controlled hands-free via real-time Socket.IO streams.}
+\end{itemize}
+
+% Project 3
+\projectHeader{Smart Car Concierge --- AI Recommendation Platform}{}{2024 -- 2025}
+\vspace{-2pt}
+{\small \textit{PyTorch, LangGraph, CLIP, Gemini API, React, MongoDB}}
+\begin{itemize}
+    \resumeItem{Built an intelligent recommendation engine utilizing SVD \& Collaborative Filtering alongside Deep Learning preference modeling.}
+    \resumeItem{Implemented a LangGraph multi-agent RAG pipeline with CLIP-based visual search and hybrid retrieval (BM25 + embeddings).}
+\end{itemize}
+
+% Project 4
+\projectHeader{MC-MOT: Vehicle Surveillance \& Re-ID System}{}{2025}
+\vspace{-2pt}
+{\small \textit{YOLO11s, OpenVINO, PyTorch, Depth Estimation, VietOCR}}
+\begin{itemize}
+    \resumeItem{Developed a multi-camera tracking pipeline with YOLO11s, Depth Anything V2, and Vehicle Re-Identification modules.}
+    \resumeItem{Optimized inference using INT8 OpenVINO and multi-threading, achieving real-time FPS on a standard CPU (i5-12500H).}
+\end{itemize}
+
+% Project 5
+\projectHeader{Hanoi Stock Trader --- High-Performance Trading Platform}{}{2024}
+\vspace{-2pt}
+{\small \textit{React, Node.js, SQL Server (Stored Procedures)}}
+\begin{itemize}
+    \resumeItem{Simulated a stock market platform with automated matching engines (ATO/ATC algorithms) and real-time order books.}
+    \resumeItem{Implemented complex business logic strictly at the database level using SQL Server Stored Procedures for high performance.}
+\end{itemize}
+
+%===========================================================================
+\end{document}
